@@ -37,14 +37,13 @@ for i in range(1,int(t/dt)):
 			M[i] = M[0]*math.exp((mu-(math.pow(sigma,2))/2)*(i*dt)+sigma*f[i]) #market cap calc based on GBM
 	cdps = update_collat(cdps,M[i],M[i-1])
 	liq_debt[i] = sum([c["debt"] for c in cdps if c["open"]==False])
-	print(cdps)
 
 delta = [(M[n]-M[n-1])/M[n-1] for n in range(1,len(M))]
 
 
 fig, ax1 = plt.subplots()
 ax1.set_xlabel('T')
-ax1.set_ylabel('% Drift')
+ax1.set_ylabel('Dai Liquidated')
 ax1.plot(liq_debt, color='tab:red')
 ax2 = ax1.twinx()
 ax2.set_ylabel('ETH Price')
