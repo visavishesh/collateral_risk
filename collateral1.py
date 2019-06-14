@@ -42,7 +42,7 @@ delta = [(M[n]-M[n-1])/M[n-1] for n in range(1,len(M))]
 
 
 fig, ax1 = plt.subplots()
-ax1.set_xlabel('T')
+ax1.set_xlabel('Days')
 ax1.set_ylabel('Dai Liquidated')
 ax1.plot(liq_debt, color='tab:red')
 ax2 = ax1.twinx()
