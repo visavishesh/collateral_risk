@@ -10,13 +10,15 @@ from plotly.graph_objs import *
 
 import numpy as np
 
+print("Running simulations...")
+
 ##simulation length
 t=float(1)
 dt=float(1/365)
 ##
 
 ##number of simulations
-num_simulations = 10000
+num_simulations = 100
 ##
 
 ##Jump
@@ -55,20 +57,22 @@ cdp_reversion_speed=3
 #?
 reentry_time=7
 
+result_array = [0 for i in range(num_simulations)]
+
 total_losses = []
 
 for simulation in range(num_simulations):
     cdps = [
-        {"bucket":1.75,"collat":1.75,"debt":5,"open":True,"clock":0},
-        {"bucket":2.25,"collat":2.25,"debt":9.5,"open":True,"clock":0},
-        {"bucket":2.5,"collat":2.5,"debt":3.5,"open":True,"clock":0},
-        {"bucket":2.75,"collat":2.75,"debt":18,"open":True,"clock":0},
-        {"bucket":3.25,"collat":3.25,"debt":14,"open":True,"clock":0},
-        {"bucket":3.75,"collat":3.75,"debt":14,"open":True,"clock":0},
-        {"bucket":4.25,"collat":4.25,"debt":11,"open":True,"clock":0},
-        {"bucket":4.75,"collat":4.75,"debt":7,"open":True,"clock":0},
-        {"bucket":5.25,"collat":5.25,"debt":3,"open":True,"clock":0},
-        {"bucket":7.5,"collat":7.5,"debt":15,"open":True,"clock":0}
+        {"bucket":1.75,"collat":1.75,"debt":5e6,"open":True,"clock":0},
+        {"bucket":2.25,"collat":2.25,"debt":9.5e6,"open":True,"clock":0},
+        {"bucket":2.5,"collat":2.5,"debt":3.5e6,"open":True,"clock":0},
+        {"bucket":2.75,"collat":2.75,"debt":18e6,"open":True,"clock":0},
+        {"bucket":3.25,"collat":3.25,"debt":14e6,"open":True,"clock":0},
+        {"bucket":3.75,"collat":3.75,"debt":14e6,"open":True,"clock":0},
+        {"bucket":4.25,"collat":4.25,"debt":11e6,"open":True,"clock":0},
+        {"bucket":4.75,"collat":4.75,"debt":7e6,"open":True,"clock":0},
+        {"bucket":5.25,"collat":5.25,"debt":3e6,"open":True,"clock":0},
+        {"bucket":7.5,"collat":7.5,"debt":15e6,"open":True,"clock":0}
     ]
     x = [i for i in range(int(t/dt))]
     f = [0 for i in range(int(t/dt))]
@@ -123,14 +127,11 @@ for simulation in range(num_simulations):
         undercollateralized_loss_perc[time_step] = undercollateralized_loss[time_step]/debt_supply[time_step]
 
         liquidated_collateral[time_step] = liquidated_debt[time_step]/M[time_step]
-        slippage_loss[time_step] = (8.97e-9)*liquidated_collateral[time_step] + (2.22e-11)*math.pow(liquidated_collateral[time_step],2)
+        # slippage_loss[time_step] = (-7e-9)*liquidated_collateral[time_step] + (2.21e-11)*math.pow(liquidated_collateral[time_step],2)
+        slippage_loss[time_step] = (7.3e-4)+(-8.46e-10)*liquidated_debt[time_step] + (6.18e-16)*math.pow(liquidated_debt[time_step],2)
 
-    #print("Slippage loss",sum(slippage_loss))
-    #print("Undercollateralized loss",sum(undercollateralized_loss_perc))
-
-    total_losses+=[sum(slippage_loss)+sum(undercollateralized_loss_perc)]
-
-print(np.average(total_losses))    
+    result_array[simulation] = sum(slippage_loss)+sum(undercollateralized_loss_perc)
+print(np.average(result_array))    
 ##
 
 data = [go.Scatter(x=x,
@@ -196,3 +197,15 @@ layout = go.Layout(xaxis=dict(title="Days"),yaxis=dict(title="Slippage Loss"))
 
 fig = Figure(data=data, layout=layout)
 plot_url = py.plot(fig,filename="Slippage Loss.html")
+
+##
+
+data = [go.Scatter(x=list(range(num_simulations)),
+            y=result_array, mode='lines',line=dict(color="blue"))
+       ]
+
+layout = go.Layout(xaxis=dict(title="Simulations"),yaxis=dict(title="Total Losses"))
+
+fig = Figure(data=data, layout=layout)
+plot_url = py.plot(fig,filename="Total Losses.html")
+
