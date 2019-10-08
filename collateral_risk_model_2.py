@@ -16,7 +16,7 @@ dt=float(1/365)
 ##
 
 ##number of simulations
-num_simulations = 100
+num_simulations = 10000
 ##
 
 ##Jump
@@ -26,6 +26,7 @@ import scipy.stats as stats
 #lower, upper, mu, and sigma are four parameters
 lower, upper = 0, 1
 mu, sigma = 0.2, 0.1
+jump_prob_cutoff = .4
 
 #instantiate an object X using the above four parameters,
 jump_distribution = stats.truncnorm((lower - mu) / sigma, (upper - mu) / sigma, loc=mu, scale=sigma)
@@ -86,7 +87,7 @@ for simulation in range(num_simulations):
     for time_step in range(1,int(t/dt)):
         jump_value = jump_distribution.rvs(1)[0]        
         if amount_to_recover==0:
-            if jump_value>.4:
+            if jump_value>jump_prob_cutoff:
                 f[time_step] = f[time_step-1]+math.sqrt(dt)*np.random.normal(0,1,1) 
                 M[time_step] = M[time_step-1]*(1-jump_value)
 
@@ -124,10 +125,12 @@ for simulation in range(num_simulations):
         liquidated_collateral[time_step] = liquidated_debt[time_step]/M[time_step]
         slippage_loss[time_step] = (8.97e-9)*liquidated_collateral[time_step] + (2.22e-11)*math.pow(liquidated_collateral[time_step],2)
 
-    print("Slippage loss",sum(slippage_loss))
-    print("Undercollateralized loss",sum(undercollateralized_loss_perc))
+    #print("Slippage loss",sum(slippage_loss))
+    #print("Undercollateralized loss",sum(undercollateralized_loss_perc))
 
     total_losses+=[sum(slippage_loss)+sum(undercollateralized_loss_perc)]
+
+print(np.average(total_losses))    
 ##
 
 data = [go.Scatter(x=x,
