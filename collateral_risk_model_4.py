@@ -78,8 +78,8 @@ for simulation in range(num_simulations):
 
     for time_step in range(1,int(t/dt)):
         
-        jump_random = np.random.random()*100
-        jump_value = max([jump_severities[jump_probabilities.index(x)] for x in jump_probabilities if x>=jump_random])*.01
+        jump_random = np.random.random()*100        
+        jump_value = .01*jump_severities[min([jump_probabilities.index(j) for j in jump_probabilities if j>jump_random])]
 
         #if there is recovery to be made from a crash
         if recovery_clock>0:            
@@ -107,7 +107,8 @@ for simulation in range(num_simulations):
                 M[time_step] = M[time_step-1]*(1-jump_value)                
                 f[time_step] = (math.log(M[time_step]/M[0])-(mu-(math.pow(sigma,2))/2)*(time_step*dt))/sigma
 
-                print(jump_value,M[time_step],M[time_step-1])
+                #TEST
+                #print(jump_value,M[time_step],M[time_step-1])
 
                 #and set the recovery amount to be the positive value of the amount of the drop
                 amount_to_recover = abs(M[time_step-1]-M[time_step])
@@ -158,7 +159,7 @@ for simulation in range(num_simulations):
         debt_supply[time_step]=sum([c["debt"] for c in cdps if c["open"]==True])
 
         #calculate the loss from slippage as a function of liquidated debt
-        slippage_loss[time_step] = debt_supply[time_step]*min(1,((1.96e-9)*liquidated_debt[time_step] + (2.52e-18)*math.pow(liquidated_debt[time_step],2) + (3.14e-24)*math.pow(liquidated_debt[time_step],3) + (2.13e-32)*math.pow(liquidated_debt[time_step],4)))
+        slippage_loss[time_step] = liquidated_debt[time_step] * min(1,((1.96e-9)*liquidated_debt[time_step] + (2.52e-18)*math.pow(liquidated_debt[time_step],2) + (3.14e-24)*math.pow(liquidated_debt[time_step],3) + (2.13e-32)*math.pow(liquidated_debt[time_step],4)))
 
     #record the total loss from the simulation
     result_array[simulation] = sum(slippage_loss)+sum(undercollateralized_loss)
