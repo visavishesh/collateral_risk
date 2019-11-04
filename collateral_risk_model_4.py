@@ -9,6 +9,7 @@ import plotly.graph_objs as go
 from plotly.graph_objs import *
 
 import numpy as np
+import scipy.stats as stats
 
 print("Running simulations...")
 
@@ -21,11 +22,33 @@ dt=float(1/365)
 num_simulations = 100
 ##
 
-jump_probabilities = [.55,(1.1+.55),(.82+1.1+.55),100]
-jump_severities = [9.5,24.96,66.64,0]
+a=.55
+b=.8
+c=.138*2
+jump_probabilities = [a,(a+b),(a+b+c),100]
+jump_severities = [9.5,24.96,50,0]
+
+
+# #lower, upper, mu, and sigma are four parameters for jump risk
+# lower, upper = 0, 1
+# mu, sigma = 0.2, 0.1
+# jump_prob_cutoff = .5
+
+
+# #instantiate an object X using the above four parameters,
+# jump_distribution = stats.truncnorm((lower - mu) / sigma, (upper - mu) / sigma, loc=mu, scale=sigma)
+
+# #generate 1000 sample data
+# jump_samples = jump_distribution.rvs(1000)
+
+# pdf_probs = stats.truncnorm.pdf(jump_samples, (lower-mu)/sigma, (upper-mu)/sigma, mu, sigma)
+# plt.plot(jump_samples[jump_samples.argsort()],pdf_probs[jump_samples.argsort()],linewidth=2.3,label='PDF curve')
+# plt.show()
+# ##
+
 
 #overall drift
-mu=0.06
+mu=0.0
 #overall volatility
 sigma=1.2
 
@@ -36,6 +59,7 @@ time_to_start_recovery = 3
 
 #liquidation threshold
 collateral_cutoff=1.5
+liquidation_penalty = .0
 
 #?
 reentry_time=7
@@ -48,8 +72,8 @@ eth_price_record = {}
 
 for simulation in range(num_simulations):
     cdps = [
-        {"bucket":1.55,"collat":1.55,"debt":1e6,"open":True,"re_entry_clock":0,"reversion_time":1},
-        {"bucket":1.6,"collat":1.6,"debt":1e6,"open":True,"re_entry_clock":0,"reversion_time":1},
+        {"bucket":1.55,"collat":1.55,"debt":1e6,"open":True,"re_entry_clock":0,"reversion_time":3},
+        {"bucket":1.65,"collat":1.65,"debt":1e6,"open":True,"re_entry_clock":0,"reversion_time":3},
         {"bucket":1.75,"collat":1.75,"debt":3e6,"open":True,"re_entry_clock":0,"reversion_time":3},
         {"bucket":2.25,"collat":2.25,"debt":9.5e6,"open":True,"re_entry_clock":0,"reversion_time":3},
         {"bucket":2.5,"collat":2.5,"debt":3.5e6,"open":True,"re_entry_clock":0,"reversion_time":5},
@@ -68,6 +92,9 @@ for simulation in range(num_simulations):
     liquidated_collateral = [0 for i in range(int(t/dt))]
     undercollateralized_loss = [0 for i in range(int(t/dt))]
     undercollateralized_loss_perc = [0 for i in range(int(t/dt))]
+    
+    loss_gain = [0 for i in range(int(t/dt))]    
+
     slippage_loss = [0 for i in range(int(t/dt))]
     debt_supply = [sum([c["debt"] for c in cdps]) for i in range(int(t/dt))]
     collateralizations = {}
@@ -92,6 +119,7 @@ for simulation in range(num_simulations):
                 #and decrement the clock to start the recovery
                 clock_to_start_recovery-=1
             #otherwise, if the n-day delay to start the recovery has elapsed
+            
             else:
                 #then use the total amount to recover divded by the recovery time
                 M[time_step] = M[time_step-1]+amount_to_recover/recovery_time
@@ -125,6 +153,7 @@ for simulation in range(num_simulations):
         #TEST
         #print("f",f[time_step],"m",M[time_step]) 
 
+        print(time_step,"###############")
         #for every bucket in the CDP distribution
         for bucket in cdps:                      
             #the reversion time is defined within the bucket  
@@ -153,16 +182,24 @@ for simulation in range(num_simulations):
                 #set the bucket to be closed
                 bucket["open"]=False        
                 #if the bucket is undercollateralized, then add the  deficit to the undercollateralized losses
-                if bucket["collat"]<1: undercollateralized_loss[time_step]+=bucket["debt"]*(1-bucket["collat"])
+                #if bucket["collat"]<1: undercollateralized_loss[time_step]+=bucket["debt"]*(1-bucket["collat"])
+                slip = min(1,((1.96e-9)*bucket["debt"] + (2.52e-18)*math.pow(bucket["debt"],2) + (3.14e-24)*math.pow(bucket["debt"],3) + (2.13e-32)*math.pow(bucket["debt"],4)))                
+                #slip = .3
+                auction_efficiency = 0
+                dai_obtained = min(bucket["debt"]*(1+liquidation_penalty),(bucket["collat"]*bucket["debt"])*(1-slip))
+                loss_gain[time_step] += (dai_obtained-bucket["debt"])
+                print("Slippage",bucket,slip,bucket["collat"]*(1-slip),dai_obtained,dai_obtained-bucket["debt"])
 
         #count up the open buckets and measure the debt supply at each time step
         debt_supply[time_step]=sum([c["debt"] for c in cdps if c["open"]==True])
+
+        #auction mechanic phase 1 and phase 2
 
         #calculate the loss from slippage as a function of liquidated debt
         slippage_loss[time_step] = liquidated_debt[time_step] * min(1,((1.96e-9)*liquidated_debt[time_step] + (2.52e-18)*math.pow(liquidated_debt[time_step],2) + (3.14e-24)*math.pow(liquidated_debt[time_step],3) + (2.13e-32)*math.pow(liquidated_debt[time_step],4)))
 
     #record the total loss from the simulation
-    result_array[simulation] = sum(slippage_loss)+sum(undercollateralized_loss)
+    result_array[simulation] = sum(loss_gain)
     #record the total array of ETH prices from the simulation
     eth_price_record[simulation] = M
 print(np.average(result_array))    
@@ -191,13 +228,13 @@ plot_url = py.plot(fig,filename="Eth Price vs. Dai liquidated.html")
 ##
 
 data = [
-            go.Scatter(x=x,y=undercollateralized_loss,mode='lines',line=dict(color="red"),yaxis="y",xaxis="x"),
+            go.Scatter(x=x,y=loss_gain,mode='lines',line=dict(color="red"),yaxis="y",xaxis="x"),
             go.Scatter(x=x,y=M,mode='lines',line=dict(color="blue"),yaxis="y2",xaxis="x")
            ]
-layout = go.Layout(xaxis=dict(title="Days"),yaxis=dict(title="Dai Lost"),yaxis2=dict(title="ETH Price",overlaying="y",side="right"),showlegend=False)
+layout = go.Layout(xaxis=dict(title="Days"),yaxis=dict(title="Loss Gain"),yaxis2=dict(title="ETH Price",overlaying="y",side="right"),showlegend=False)
 
 fig = Figure(data=data, layout=layout)
-plot_url = py.plot(fig,filename="Eth Price vs. Undercollateralized Loss.html")
+plot_url = py.plot(fig,filename="Eth Price vs. Loss Gain.html")
 
 ##
 
@@ -227,7 +264,7 @@ data = [go.Scatter(x=list(range(num_simulations)),
             y=result_array, mode='lines',line=dict(color="red"))
        ]
 
-layout = go.Layout(xaxis=dict(title="Simulations"),yaxis=dict(title="Total Losses"))
+layout = go.Layout(xaxis=dict(title="Simulations"),yaxis=dict(title="Total Loss/Gain"))
 
 fig = Figure(data=data, layout=layout)
 plot_url = py.plot(fig,filename="Total Losses.html")
