@@ -21,12 +21,12 @@ dt=float(1/365)
 ##
 
 ##number of simulations
-num_simulations = 100
+num_simulations = 1000
 ##
 
 a=.55
 b=.8
-c=.138*2
+c=.138
 jump_probabilities = [a,(a+b),(a+b+c),100]
 jump_severities = [9.5,24.96,50,0]
 
@@ -75,20 +75,33 @@ total_losses = []
 
 eth_price_record = {}
 
+# cdps = [
+#         {"bucket":1.55,"collat":1.55,"debt":2e6,"open":True,"re_entry_clock":0,"reversion_time":3},
+#         {"bucket":1.75,"collat":1.75,"debt":2e6,"open":True,"re_entry_clock":0,"reversion_time":3},
+#         {"bucket":2,"collat":2,"debt":2e6,"open":True,"re_entry_clock":0,"reversion_time":3},
+#         {"bucket":2.25,"collat":2.25,"debt":9e6,"open":True,"re_entry_clock":0,"reversion_time":3},
+#         {"bucket":2.5,"collat":2.5,"debt":3e6,"open":True,"re_entry_clock":0,"reversion_time":5},
+#         {"bucket":2.75,"collat":2.75,"debt":18e6,"open":True,"re_entry_clock":0,"reversion_time":5},
+#         {"bucket":3.25,"collat":3.25,"debt":14e6,"open":True,"re_entry_clock":0,"reversion_time":5},
+#         {"bucket":3.75,"collat":3.75,"debt":14e6,"open":True,"re_entry_clock":0,"reversion_time":7},
+#         {"bucket":4.25,"collat":4.25,"debt":11e6,"open":True,"re_entry_clock":0,"reversion_time":7},
+#         {"bucket":4.75,"collat":4.75,"debt":7e6,"open":True,"re_entry_clock":0,"reversion_time":10},
+#         {"bucket":5.25,"collat":5.25,"debt":3e6,"open":True,"re_entry_clock":0,"reversion_time":10},
+#         {"bucket":7.5,"collat":7.5,"debt":15e6,"open":True,"re_entry_clock":0,"reversion_time":10}
+#     ]
+
 for simulation in range(num_simulations):
     cdps = [
-        {"bucket":1.55,"collat":1.55,"debt":2e6,"open":True,"re_entry_clock":0,"reversion_time":3},
-        {"bucket":1.75,"collat":1.75,"debt":2e6,"open":True,"re_entry_clock":0,"reversion_time":3},
-        {"bucket":2,"collat":2,"debt":2e6,"open":True,"re_entry_clock":0,"reversion_time":3},
-        {"bucket":2.25,"collat":2.25,"debt":9e6,"open":True,"re_entry_clock":0,"reversion_time":3},
-        {"bucket":2.5,"collat":2.5,"debt":3e6,"open":True,"re_entry_clock":0,"reversion_time":5},
-        {"bucket":2.75,"collat":2.75,"debt":18e6,"open":True,"re_entry_clock":0,"reversion_time":5},
-        {"bucket":3.25,"collat":3.25,"debt":14e6,"open":True,"re_entry_clock":0,"reversion_time":5},
-        {"bucket":3.75,"collat":3.75,"debt":14e6,"open":True,"re_entry_clock":0,"reversion_time":7},
-        {"bucket":4.25,"collat":4.25,"debt":11e6,"open":True,"re_entry_clock":0,"reversion_time":7},
-        {"bucket":4.75,"collat":4.75,"debt":7e6,"open":True,"re_entry_clock":0,"reversion_time":10},
-        {"bucket":5.25,"collat":5.25,"debt":3e6,"open":True,"re_entry_clock":0,"reversion_time":10},
-        {"bucket":7.5,"collat":7.5,"debt":15e6,"open":True,"re_entry_clock":0,"reversion_time":10}
+        {"bucket":1.65,"collat":1.65,"debt":1.5e6,"open":True,"re_entry_clock":0,"reversion_time":2},
+        {"bucket":1.75,"collat":1.75,"debt":8.55e6,"open":True,"re_entry_clock":0,"reversion_time":2},
+        {"bucket":2.00,"collat":2.00,"debt":12.04e6,"open":True,"re_entry_clock":0,"reversion_time":3},
+        {"bucket":2.25,"collat":2.25,"debt":13.78e6,"open":True,"re_entry_clock":0,"reversion_time":3},
+        {"bucket":2.5,"collat":2.5,"debt":12.07e6,"open":True,"re_entry_clock":0,"reversion_time":5},
+        {"bucket":2.75,"collat":2.75,"debt":8.09e6,"open":True,"re_entry_clock":0,"reversion_time":5},
+        {"bucket":3.25,"collat":3.25,"debt":11.54e6,"open":True,"re_entry_clock":0,"reversion_time":5},
+        {"bucket":3.75,"collat":3.75,"debt":11.00e6,"open":True,"re_entry_clock":0,"reversion_time":7},
+        {"bucket":4.25,"collat":4.25,"debt":9.54e6,"open":True,"re_entry_clock":0,"reversion_time":7},
+        {"bucket":5.00,"collat":5.00,"debt":11.90e6,"open":True,"re_entry_clock":0,"reversion_time":10}
     ]
     x = [i for i in range(int(t/dt))]
     f = [0 for i in range(int(t/dt))]
