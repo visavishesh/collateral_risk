@@ -18,21 +18,20 @@ print("Running simulations...")
 data_results = []
 result_matrix = []
 
-def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cdp_distribution,jump_probabilities,jump_severities):
+def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cdp_distribution,jump_probabilities,jump_severities,slippage_function,recovery_time,time_to_start_recovery,reentry_time,auction_efficiency):    
+    def slippage(auction_size,slippage_function):
+        s=slippage_function["scalar"]
+        a=slippage_function["constant"]
+        b=slippage_function["x"]
+        c=slippage_function["x^2"]
+        d=slippage_function["x^3"]
+        e=slippage_function["x^4"]    
+        slip = min(1,s*(a*(auction_size>0)+b*auction_size+c*math.pow(auction_size,2)+d*math.pow(auction_size,3) +e*math.pow(auction_size,4)))
+        return(slip)
+
     ##simulation length (should we use avg age of debt?)
-    t=float(1)
+    t=float(1.0)
     dt=float(t/sim_len)
-
-    #time for price to recover from a crash (days)
-    recovery_time=3 
-    #the time after a crash before the recovery period starts (days)
-    time_to_start_recovery = 3
-
-    #the efficiency of the auction in which collateral is sold. 0 means full collateral sold, 1 means only amount equal to the debt sold. 
-    auction_efficiency = 0
-
-    #the number of days before CDPs re-enter the debt pool after liquidation
-    reentry_time=7
 
     data = [{} for i in range(int(t/dt))]
     
@@ -137,7 +136,7 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
                     auction_size = bucket["debt"]*(1-auction_efficiency) + bucket["collat"]*bucket["debt"]*auction_efficiency
                     #the % lost in slippage is a function of the amount sold in auction
                     #old -- > 
-                    slip = slippage(auction_size)                    
+                    slip = slippage(auction_size,slippage_function)                    
                     #the amount of dai recovered in auction is the lesser of the debt in the CDP plus the liquidation penalty, and the amount of collateral in the CDP less slippage
                     dai_obtained = min(bucket["debt"]*(1+liquidation_penalty),(bucket["collat"]*bucket["debt"])*(1-slip))
                     data[time_step]["undercollateralized_loss"] += max(0,1-bucket["collat"])*bucket["debt"]
@@ -153,59 +152,121 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
         data[time_step]["sim_len"]=sim_len
     return(data)
 
-def run_sim(num_simulations,sim_len,mu,sigma,debt_ceiling,liquidation_penalty,collateral_cutoff,cdp_distribution):
+def run_sim(num_simulations,sim_len,mu,sigma,debt_ceiling,liquidation_penalty,collateral_cutoff,cdp_distribution,jump_probabilities,jump_severities,slippage_function,recovery_time,time_to_start_recovery,reentry_time,auction_efficiency):    
     results=[]
 
     for iteration in range(num_simulations):
-        result = run_iter(iteration = iteration, mu=mu,sigma = sigma,collateral_cutoff = collateral_cutoff,liquidation_penalty=liquidation_penalty,sim_len = sim_len,cdp_distribution=cdp_distribution,jump_probabilities=jump_probabilities,jump_severities=jump_severities)
+        result = run_iter(iteration = iteration, mu=mu,sigma = sigma,collateral_cutoff = collateral_cutoff,
+            liquidation_penalty=liquidation_penalty,sim_len = sim_len,cdp_distribution=cdp_distribution,
+            jump_probabilities=jump_probabilities,jump_severities=jump_severities,slippage_function=slippage_function,
+            recovery_time=recovery_time,time_to_start_recovery=time_to_start_recovery,reentry_time=reentry_time,
+            auction_efficiency=auction_efficiency)
         results+=result
 
     return(pd.DataFrame(results))
 
+
+def print_results(data):
+    #print("data")
+    #print(data)
+    #print(data.columns)
+
+    #print("total")
+    total = data.groupby(["iteration"]).sum()
+    total["loss_gain_total"]=total["loss_gain"]
+    #print(total)
+    #print(total.columns)
+
+    #print("avg")
+    avg = data.groupby(["iteration"]).mean()
+    avg["avg_debt_supply"] = avg["debt_supply"]
+    #print(avg)
+    #print(avg.columns)
+
+    #print("df")
+    df = total.merge(avg["avg_debt_supply"],how="inner",on="iteration")
+    df["loss_gain_perc"]=df["loss_gain_total"]/df["debt_supply"]
+    #print(df)
+    #print(df.columns)
+
+    #print("n_smallest")
+    n_smallest = data.nsmallest(max(1,int(num_simulations*sim_len*.001)), columns=["loss_gain"],keep="all")
+    #print(n_smallest)
+    #print(n_smallest.columns)
+
+    avg_losses=df["loss_gain_perc"].mean()
+    worst_losses=n_smallest["loss_gain"].sum()
+    print("  Average losses:",avg_losses)
+    print("  .1% worst losses:",worst_losses)
+    return({"avg_losses":avg_losses,"worst_losses":worst_losses})
+
+#mu_range = list(np.arange(-.5, .5, 0.05))
+#sigma_range = list(np.arange(.1, 2, 0.1))
+#collateral_cutoff_range = list(np.arange(1.0,2,.05))
+
+# #Controls Everything
+    # params = {
+    #     "num_simulations":20,
+    #     "sim_len":365,
+    #     "mu":0,
+    #     "sigma":.8,
+    #     "debt_ceiling":debt_ceiling,
+    #     "liquidation_penalty":.13,
+    #     "collateral_cutoff":collateral_cutoff,
+    #     "cdp_distribution":cdp_distribution,
+    #     "jump_probabilities":jump_probabilities,
+    #     "jump_severities":jump_severities
+    # }
+#new -- >
+#slip = min(1, (-6.68e-10)*auction_size + (1.18e-16)*math.pow(auction_size,2) + (-4.91e-25)*math.pow(auction_size,3) )
+#new --> new
+#slip = max(0,min(1,-0.0192*(auction_size>0)+auction_size*(1.4E-9)+math.pow(auction_size,2)*(1.37E-16)+math.pow(auction_size,3)*(-6.95E-25)))
+
+mu=0
+sigma=1.2
 num_simulations=20
 sim_len=365
-mu_range = list(np.arange(-.5, .5, 0.05))
-sigma_range = list(np.arange(.1, 2, 0.1))
-
-collateral_cutoff_range = list(np.arange(1.0,2,.05))
-collateral_cutoff = 1.5
-debt_ceiling = 1.2e6
-cdp_distribution = [
-            {"bucket":collateral_cutoff+.15,"collat":collateral_cutoff+.15,"debt":1.5*debt_ceiling,"open":True,"re_entry_clock":0,"reversion_time":2},
-            {"bucket":collateral_cutoff+.25,"collat":collateral_cutoff+.25,"debt":8.55*debt_ceiling,"open":True,"re_entry_clock":0,"reversion_time":2},
-            {"bucket":collateral_cutoff+.50,"collat":collateral_cutoff+.5,"debt":12.04*debt_ceiling,"open":True,"re_entry_clock":0,"reversion_time":3},
-            {"bucket":collateral_cutoff+.75,"collat":collateral_cutoff+.75,"debt":13.78*debt_ceiling,"open":True,"re_entry_clock":0,"reversion_time":3},
-            {"bucket":collateral_cutoff+1,"collat":collateral_cutoff+1,"debt":12.07*debt_ceiling,"open":True,"re_entry_clock":0,"reversion_time":5},
-            {"bucket":collateral_cutoff+1.25,"collat":collateral_cutoff+1.25,"debt":8.09*debt_ceiling,"open":True,"re_entry_clock":0,"reversion_time":5},
-            {"bucket":collateral_cutoff+1.50,"collat":collateral_cutoff+1.5,"debt":11.54*debt_ceiling,"open":True,"re_entry_clock":0,"reversion_time":5},
-            {"bucket":collateral_cutoff+2.0,"collat":collateral_cutoff+2,"debt":11.00*debt_ceiling,"open":True,"re_entry_clock":0,"reversion_time":7},
-            {"bucket":collateral_cutoff+2.50,"collat":collateral_cutoff+2.5,"debt":9.54*debt_ceiling,"open":True,"re_entry_clock":0,"reversion_time":7},
-            {"bucket":collateral_cutoff+3.25,"collat":collateral_cutoff+3.25,"debt":11.90*debt_ceiling,"open":True,"re_entry_clock":0,"reversion_time":10}
-        ]
-
-a=.55
-b=.8
-c=.138*2
+a=0.55
+b=0.8
+c=0.138*2
 jump_probabilities = [a,(a+b),(a+b+c),100]
 jump_severities = [9.5,24.96,50,0]
+collateral_cutoff = 1.5
+#time for price to recover from a crash (days)
+recovery_time=3 
+#the time after a crash before the recovery period starts (days)
+time_to_start_recovery = 3
+#the efficiency of the auction in which collateral is sold. 0 means full collateral sold, 1 means only amount equal to the debt sold. 
+auction_efficiency = 0
+#the number of days before CDPs re-enter the debt pool after liquidation
+reentry_time=7
 
-def slippage(auction_size):
-    slip = min(1,10*((1.96e-9)*auction_size + (2.52e-18)*math.pow(auction_size,2) + (3.14e-24)*math.pow(auction_size,3) + (2.13e-32)*math.pow(auction_size,4)))
-    #new -- >
-    #slip = min(1, (-6.68e-10)*auction_size + (1.18e-16)*math.pow(auction_size,2) + (-4.91e-25)*math.pow(auction_size,3) )
-    #new --> new
-    #slip = max(0,min(1,-0.0192*(auction_size>0)+auction_size*(1.4E-9)+math.pow(auction_size,2)*(1.37E-16)+math.pow(auction_size,3)*(-6.95E-25)))
-    return(slip)
+debt_ceiling = 100e6
+debt_ceiling_step = 1e6
+worst_losses = 0
+economic_capital = 150e6
 
-#Controls Everything
-data = run_sim(num_simulations=20,sim_len=365,mu=0,sigma=.8,debt_ceiling = debt_ceiling,liquidation_penalty=.13,collateral_cutoff=collateral_cutoff,cdp_distribution=cdp_distribution,jump_probabilities=jump_probabilities,jump_severities=jump_severities)
+#slippage = min(1, scalar * (constant * (x>0)+a*x+b*x^2+c*x^3+d*x^4 ) )
+slippage_function = {"constant":0,"x":1.96e-9,"x^2":2.52e-18,"x^3":3.14e-24,"x^4":2.13e-32,"scalar":10}
 
-#Pretty Printing
-total = data.groupby(["iteration"]).sum()
-avg = data.groupby(["iteration"]).mean()
-debt = avg["debt_supply"]
-total["loss_gain_total"]=total["loss_gain"]
-df = avg.merge(total["loss_gain_total"],how="inner",on="iteration")
-df["loss_gain_perc"]=df["loss_gain_total"]/df["debt_supply"]
-print(df)
-print(data.nsmallest(max(1,int(num_simulations*sim_len*.001)), columns=["loss_gain"],keep="all"))
+print("num_sim",num_simulations,"sim_len",sim_len,"collat_req",collateral_cutoff,"mu",mu,"sigma",sigma,"EC",economic_capital,"slip_fun",slippage_function)
+while worst_losses<economic_capital:    
+    print("  debt_ceiling",debt_ceiling)
+    cdp_distribution = [
+                {"bucket":collateral_cutoff+.15,"collat":collateral_cutoff+.15,"debt":1.5*debt_ceiling*.01,"open":True,"re_entry_clock":0,"reversion_time":2},
+                {"bucket":collateral_cutoff+.25,"collat":collateral_cutoff+.25,"debt":8.55*debt_ceiling*.01,"open":True,"re_entry_clock":0,"reversion_time":2},
+                {"bucket":collateral_cutoff+.50,"collat":collateral_cutoff+.5,"debt":12.04*debt_ceiling*.01,"open":True,"re_entry_clock":0,"reversion_time":3},
+                {"bucket":collateral_cutoff+.75,"collat":collateral_cutoff+.75,"debt":13.78*debt_ceiling*.01,"open":True,"re_entry_clock":0,"reversion_time":3},
+                {"bucket":collateral_cutoff+1,"collat":collateral_cutoff+1,"debt":12.07*debt_ceiling*.01,"open":True,"re_entry_clock":0,"reversion_time":5},
+                {"bucket":collateral_cutoff+1.25,"collat":collateral_cutoff+1.25,"debt":8.09*debt_ceiling*.01,"open":True,"re_entry_clock":0,"reversion_time":5},
+                {"bucket":collateral_cutoff+1.50,"collat":collateral_cutoff+1.5,"debt":11.54*debt_ceiling*.01,"open":True,"re_entry_clock":0,"reversion_time":5},
+                {"bucket":collateral_cutoff+2.0,"collat":collateral_cutoff+2,"debt":11.00*debt_ceiling*.01,"open":True,"re_entry_clock":0,"reversion_time":7},
+                {"bucket":collateral_cutoff+2.50,"collat":collateral_cutoff+2.5,"debt":9.54*debt_ceiling*.01,"open":True,"re_entry_clock":0,"reversion_time":7},
+                {"bucket":collateral_cutoff+3.25,"collat":collateral_cutoff+3.25,"debt":11.90*debt_ceiling*.01,"open":True,"re_entry_clock":0,"reversion_time":10}
+            ]    
+
+    data = run_sim(num_simulations=num_simulations,sim_len=sim_len,mu=mu,sigma=sigma,debt_ceiling = debt_ceiling,liquidation_penalty=.13,collateral_cutoff=collateral_cutoff,cdp_distribution=cdp_distribution,jump_probabilities=jump_probabilities,jump_severities=jump_severities,slippage_function=slippage_function,recovery_time=recovery_time,time_to_start_recovery=time_to_start_recovery,reentry_time=reentry_time,auction_efficiency=auction_efficiency)
+    results = print_results(data)
+    worst_losses = results["worst_losses"]*-1
+    debt_ceiling = debt_ceiling+debt_ceiling_step
+    print("")
