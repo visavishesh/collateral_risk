@@ -250,12 +250,20 @@ def graph_one(config):
 
     total = data.groupby(["iteration"]).sum()
     total["loss_gain_total"]=total["loss_gain"]
+    print(total.columns)
+    print(total[['undercollateralized_loss', 'loss_gain', 'liquidated_debt', 'time_step',
+       'debt_supply']])
 
     avg = data.groupby(["iteration"]).mean()
     avg["avg_debt_supply"] = avg["debt_supply"]
+    print(avg.columns)
+    print(avg[['undercollateralized_loss', 'loss_gain', 'liquidated_debt', 'time_step',
+       'debt_supply','avg_debt_supply']])
 
     df = total.merge(avg["avg_debt_supply"],how="inner",on="iteration")
-    df["loss_gain_perc"]=100*(df["loss_gain_total"]/df["debt_supply"])
+    df["loss_gain_perc"]=100*(df["loss_gain_total"]/df["avg_debt_supply"])
+    print(df.columns)
+    print(df[['debt_supply','loss_gain_total', 'avg_debt_supply','loss_gain_perc']])
 
     n_smallest = data.nsmallest(max(1,int(num_simulations*sim_len*worst_cutoff)), columns=["loss_gain"],keep="all")
 
@@ -362,4 +370,5 @@ for config in config_array:
 print(pd.DataFrame(result_array))
 pd.DataFrame(result_array).to_csv("risk_model_results.csv")
 
+#tell the program which simulation to graph (zero indexed)
 graph_one(config_array[0])
