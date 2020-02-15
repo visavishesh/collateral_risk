@@ -286,7 +286,7 @@ def graph_one(data):
 
     #display a graph of the loss/gain over time
     fig=Figure(data= [go.Scatter(x=first["time_step"],
-                y=first["loss_gain"], mode='lines',line=dict(color="red"),name="Slippage Loss")
+                y=first["slippage_loss"], mode='lines',line=dict(color="red"),name="Slippage Loss")
            ]+[go.Scatter(x=first["time_step"],
                 y=first["asset_price"], mode='lines',line=dict(color="blue"),yaxis="y2",name="ETH Price")
            ],
