@@ -135,7 +135,7 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
                     #set the bucket to be closed
                     bucket["open"]=False                        
                     
-                    #determine how much collateral is being sold in the auction range from (just debt to total collateral)
+                    #determine how much collateral is being sold in the auction range from (ranging from just the debt to total collateral)
                     collateral_value = bucket["collat"]*bucket["debt"]
                     auction_size = min(collateral_value,bucket["debt"]*(1+liquidation_penalty)/auction_efficiency)
 
@@ -144,8 +144,8 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
                     data[time_step]["slippage_loss"]+=slip*auction_size                    
                     
                     #the amount of dai recovered in auction is the lesser of the debt in the CDP plus the liquidation penalty, and the amount of collateral in the CDP less slippage
-                    dai_obtained = auction_size*(1-slip)
-                    
+                    dai_obtained = auction_size*(1-slip)*auction_efficiency
+
                     data[time_step]["undercollateralized_loss"] += max(0,1-bucket["collat"])*bucket["debt"]
 
                     #the amount of loss or gain is equal to the amount of Dai obtained in auction less the debt to recover
