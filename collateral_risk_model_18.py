@@ -102,6 +102,11 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
                     f[time_step] = f[time_step-1]+math.sqrt(dt)*np.random.normal(0,1,1)
                     M[time_step] = m_value = M[0]*math.exp((mu-(math.pow(sigma,2))/2)*(time_step*dt)+sigma*f[time_step])      
             
+            #initialize the day's auction size to zero
+            auction_size = 0
+            #initialize the day's debt to recover to zero
+            debt_to_recover = 0
+
             #for every bucket in the CDP distribution
             for bucket in cdps:                      
                 #the reversion time is defined within the bucket  
@@ -135,21 +140,23 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
                     #set the bucket to be closed
                     bucket["open"]=False                        
                     
-                    #determine how much collateral is being sold in the auction range from (ranging from just the debt to total collateral)
-                    collateral_value = bucket["collat"]*bucket["debt"]
-                    auction_size = min(collateral_value,bucket["debt"]*(1+liquidation_penalty)/auction_efficiency)
-
-                    #the % lost in slippage is a function of the amount sold in auction
-                    slip = slippage(auction_size,slippage_function)                    
-                    data[time_step]["slippage_loss"]+=slip*auction_size                    
-                    
-                    #the amount of dai recovered in auction is the lesser of the debt in the CDP plus the liquidation penalty, and the amount of collateral in the CDP less slippage
-                    dai_obtained = auction_size*(1-slip)*auction_efficiency
-
                     data[time_step]["undercollateralized_loss"] += max(0,1-bucket["collat"])*bucket["debt"]
 
-                    #the amount of loss or gain is equal to the amount of Dai obtained in auction less the debt to recover
-                    data[time_step]["loss_gain"] += (dai_obtained-bucket["debt"])
+                    #determine how much collateral is being sold in the auction range from (ranging from just the debt to total collateral)
+                    collateral_value = bucket["collat"]*bucket["debt"]
+                    auction_size += min(collateral_value,bucket["debt"]*(1+liquidation_penalty)/auction_efficiency)                    
+                    debt_to_recover += bucket["debt"]
+
+
+            #the % lost in slippage is a function of the amount sold in auction            
+            slip = slippage(auction_size,slippage_function)                    
+            data[time_step]["slippage_loss"]+=slip*auction_size                    
+
+            #the amount of dai recovered in auction is the lesser of the debt in the CDP plus the liquidation penalty, and the amount of collateral in the CDP less slippage
+            dai_obtained = auction_size*(1-slip)*auction_efficiency            
+
+            #the amount of loss or gain is equal to the amount of Dai obtained in auction less the debt to recover
+            data[time_step]["loss_gain"] += (dai_obtained-debt_to_recover)
     
         data[time_step]["iteration"]=iteration
         data[time_step]["time_step"]=time_step
