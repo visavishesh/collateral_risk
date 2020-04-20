@@ -28,7 +28,7 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
         d=slippage_function["x^3"]
         e=slippage_function["x^4"]    
         slip = min(1,s*(a*(auction_size>0)+b*auction_size+c*math.pow(auction_size,2)+d*math.pow(auction_size,3) +e*math.pow(auction_size,4)))
-        return(slip)
+        return(0)
 
     t=float(1.0)
     dt=float(t/sim_len)
@@ -114,7 +114,12 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
                 #the collateralization ratio is the present collateralization ratio,
                 #modified by the most recent % change in asset price and 
                 #modified by the distance between the present collateralization ratio and the base state of the bucket (divided by the reversion time for that bucket)
-                bucket["collat"] = M[time_step]/M[time_step-1]*(bucket["collat"]+(bucket["bucket"]-bucket["collat"])/cdp_reversion_time)
+                new_price = M[time_step]
+                previous_price = M[time_step-1]
+                previous_collateral_ratio = bucket["collat"]
+
+                bucket["collat"] = (new_price/previous_price)*(previous_collateral_ratio+(bucket["bucket"]-previous_collateral_ratio)/cdp_reversion_time)
+                
                 #accrual of fees
                 bucket["collat"]=bucket["collat"]*(1-0.00054794520547945)
 
@@ -146,7 +151,6 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
                     collateral_value = bucket["collat"]*bucket["debt"]
                     auction_size += min(collateral_value,bucket["debt"]*(1+liquidation_penalty)/auction_efficiency)                    
                     debt_to_recover += bucket["debt"]
-
 
             #the % lost in slippage is a function of the amount sold in auction            
             slip = slippage(auction_size,slippage_function)                    
@@ -235,7 +239,7 @@ def aggregate_results(data,config):
     print(worst_cutoff)
     print(n_worst)
 
-    worst_losses=n_worst["loss_gain"].sum()
+    worst_losses=n_worst["loss_gain"].min()
 
     aggregate = {}
     aggregate["avg_losses"]=avg_losses
@@ -293,6 +297,17 @@ def graph_one(data):
     )
 
     plot_url = py.plot(fig,filename="Eth Price vs. Liquidated Debt.html")
+
+    #display a graph of the debt_supply over time
+    fig=Figure(data= [go.Scatter(x=first["time_step"],
+                y=first["debt_supply"], mode='lines',line=dict(color="red"),name="Debt Supply")
+           ]+[go.Scatter(x=first["time_step"],
+                y=first["asset_price"], mode='lines',line=dict(color="blue"),yaxis="y2",name="ETH Price")
+           ],
+    layout = go.Layout(xaxis=dict(title="Days"),yaxis=dict(title="Dai"),yaxis2=dict(title="$",overlaying="y",side="right"))
+    )
+
+    plot_url = py.plot(fig,filename="Eth Price vs. Debt Supply.html")
 
     #display a graph of the loss/gain over time
     fig=Figure(data= [go.Scatter(x=first["time_step"],
@@ -366,7 +381,7 @@ print(pd.DataFrame(result_array))
 pd.DataFrame(result_array).to_csv("risk_model_results.csv")
 
 #tell the program which simulation to graph (zero indexed)
-graph_one(config_array[0])
+# graph_one(config_array[0])
 
 #graph_scatter
 df = pd.DataFrame(result_array)
