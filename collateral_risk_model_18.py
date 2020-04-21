@@ -28,7 +28,7 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
         d=slippage_function["x^3"]
         e=slippage_function["x^4"]    
         slip = min(1,s*(a*(auction_size>0)+b*auction_size+c*math.pow(auction_size,2)+d*math.pow(auction_size,3) +e*math.pow(auction_size,4)))
-        return(0)
+        return(slip)
 
     t=float(1.0)
     dt=float(t/sim_len)
@@ -381,7 +381,7 @@ print(pd.DataFrame(result_array))
 pd.DataFrame(result_array).to_csv("risk_model_results.csv")
 
 #tell the program which simulation to graph (zero indexed)
-# graph_one(config_array[0])
+graph_one(config_array[0])
 
 #graph_scatter
 df = pd.DataFrame(result_array)
