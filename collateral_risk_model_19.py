@@ -106,7 +106,7 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
             auction_size = 0
             #initialize the day's debt to recover to zero
             debt_to_recover = 0
-
+            total_debt_purchased = 0
             auctioned_vaults = []
 
             #for every bucket in the CDP distribution
@@ -149,9 +149,8 @@ def run_iter(iteration,mu,sigma,collateral_cutoff,liquidation_penalty,sim_len,cd
                     
                     data[time_step]["undercollateralized_loss"] += max(0,1-bucket["collat"])*bucket["debt"]
 
-                    #determine how much collateral is being sold in the auction range from (ranging from just the debt to total collateral)                                        
-                    collateral_value = bucket["collat"]*bucket["debt"]
-                    auctioned_vaults += [{"collateral_value":collateral_value,"debt":bucket["debt"]}]                    
+                    #determine how much collateral is being sold in the auction range from (ranging from just the debt to total collateral)                                  
+                    auctioned_vaults += [{"collateral_value": bucket["collat"]*bucket["debt"],"debt":bucket["debt"]}]                    
 
             #the % lost in slippage is a function of the amount sold in auction            
             total_debt_purchased = sum([v["debt"] for v in auctioned_vaults])
@@ -193,8 +192,8 @@ def run_sim(config):
 
     jump_probabilities = [config["jump_probabilities"][0],(config["jump_probabilities"][0]+config["jump_probabilities"][1]),(config["jump_probabilities"][0]+config["jump_probabilities"][1]+config["jump_probabilities"][2]),100]
     cdp_distribution=[
-        {"bucket":config["collateral_cutoff"]*(1+bucket["buffer"]),
-        "collat":config["collateral_cutoff"]*(1+bucket["buffer"]),
+        {"bucket":int(100*config["collateral_cutoff"]*(1+bucket["buffer"]))/100,
+        "collat":int(100*config["collateral_cutoff"]*(1+bucket["buffer"]))/100,
         "debt":bucket["percentage"]*config["debt_ceiling"]*.01,
         "open":True,
         "re_entry_clock":0,
