@@ -280,9 +280,18 @@ def graph_one(data):
     df = aggregate_iterations(data)
     first = data[data["iteration"]==0]
 
+    # #display a graph of the colalteralization ratios of each bucket over time
+    # fig=Figure(data= [go.Scatter(x=first["time_step"],name=i,
+    #             y=first[i]*100, mode='lines',line=dict(color="rgb("+str(255-25*float(i[14:]))+","+str(25*float(i[14:]))+",0)"))
+    #        for i in first if "collat_bucket_" in i]+[go.Scatter(x=first["time_step"],
+    #             y=first["asset_price"], mode='lines',line=dict(color="blue"),yaxis="y2",name="ETH Price")
+    #        ],
+    # layout = go.Layout(xaxis=dict(title="Days"),yaxis=dict(title="Collat %"),yaxis2=dict(title="$",overlaying="y",side="right"))
+    # )
+
     #display a graph of the colalteralization ratios of each bucket over time
     fig=Figure(data= [go.Scatter(x=first["time_step"],name=i,
-                y=first[i]*100, mode='lines',line=dict(color="rgb("+str(255-25*float(i[14:]))+","+str(25*float(i[14:]))+",0)"))
+                y=first[i]*100, mode='lines',line=dict(color="rgb(125,200,0)"))
            for i in first if "collat_bucket_" in i]+[go.Scatter(x=first["time_step"],
                 y=first["asset_price"], mode='lines',line=dict(color="blue"),yaxis="y2",name="ETH Price")
            ],
