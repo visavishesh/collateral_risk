@@ -386,7 +386,7 @@ print(pd.DataFrame(result_array))
 pd.DataFrame(result_array).to_csv("risk_model_results.csv")
 
 #tell the program which simulation to graph (zero indexed)
-# graph_one(config_array[0])
+graph_one(config_array[0])
 
 #graph_scatter
 df = pd.DataFrame(result_array)
